@@ -1777,7 +1777,14 @@ function finishEditAndReturn(save) {
 }
 
 document.getElementById('savePhotoBtn').addEventListener('click', () => finishEditAndReturn(true));
-document.getElementById('skipEditBtn').addEventListener('click', () => finishEditAndReturn(false));
+// Ikon simpan di bar bawah (HP) sebelumnya hanya melewati tanpa menyimpan
+document.getElementById('skipEditBtn').addEventListener('click', () => finishEditAndReturn(true));
+
+// Label tombol simpan di editor (HTML masih memakai teks lama "Next: Assemble Puzzle")
+const savePhotoLabel = document.querySelector('#savePhotoBtn span:first-child');
+if (savePhotoLabel) savePhotoLabel.textContent = 'Save Photo';
+const savePhotoIcon = document.querySelector('#savePhotoBtn .material-symbols-outlined');
+if (savePhotoIcon) savePhotoIcon.textContent = 'download';
 
 const skipEditBtnTop = document.getElementById('skipEditBtnTop');
 if (skipEditBtnTop) {
@@ -1952,6 +1959,17 @@ function updateMobileButtons() {
   showBtn(mobileBtns.redo, ready && appState === "puzzle");
 }
 
+// Galeri foto sebelumnya (pojok kanan bawah) menutupi puzzle di layar kecil.
+// Di HP galeri disembunyikan; ketuk penghitung foto ("1 / 3") untuk mengintipnya
+// saat tidak sedang menyusun puzzle. Otomatis tertutup lagi begitu puzzle dimulai.
+let galleryPeek = false;
+
+function updateMobileGallery() {
+  if (!galleryStrip) return;
+  if (appState !== "tracking") galleryPeek = false;
+  galleryStrip.style.display = galleryPeek ? "" : "none";
+}
+
 // Dipanggil dari boot(). Aman dipanggil berulang.
 let mobileUIReady = false;
 function setupMobileUI() {
@@ -1972,7 +1990,26 @@ function setupMobileUI() {
   const center = "left:50%;transform:translateX(-50%);";
   mobileBtns.capture = makeMobileBtn("Ambil Foto", center, startTapCapture);
   mobileBtns.save = makeMobileBtn("Simpan", center, () => handleFistReset());
-  mobileBtns.redo = makeMobileBtn("Ulang", "left:16px;background:#7b5455;", () => resetPuzzleOnly());
+  // Dinaikkan agar tidak menutupi #progressBadge ("x / 9 pieces placed") di kiri bawah
+  mobileBtns.redo = makeMobileBtn(
+    "Ulang",
+    "left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 72px);background:#7b5455;",
+    () => resetPuzzleOnly()
+  );
 
-  setInterval(updateMobileButtons, 150);
+  // Penghitung foto bisa diketuk untuk melihat/menyembunyikan galeri
+  const countPill = galleryCount && galleryCount.parentElement;
+  if (countPill) {
+    countPill.style.cursor = "pointer";
+    countPill.addEventListener("click", () => {
+      if (appState === "tracking") galleryPeek = !galleryPeek;
+      updateMobileGallery();
+    });
+  }
+  updateMobileGallery();
+
+  setInterval(() => {
+    updateMobileButtons();
+    updateMobileGallery();
+  }, 150);
 }

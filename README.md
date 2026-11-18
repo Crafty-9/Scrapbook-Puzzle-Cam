@@ -6,7 +6,7 @@ Sebuah aplikasi bilik foto (*photobooth*) interaktif berbasis web yang bisa dike
 
 - **Hand-Gesture Capture:** Buat bingkai (*frame*) dengan kedua telunjukmu di depan kamera, lalu cubit (*pinch*) dengan kedua tangan untuk mengambil foto. Di HP, cukup tekan tombol **Ambil Foto**.
 - **Sliding Puzzle Minigame:** Foto yang diambil dipecah menjadi kepingan (3x3 atau 4x4) dan diacak. Susun kembali dengan gerakan mencubit di depan kamera, atau **geser langsung dengan jari di layar**. Setelah selesai, buat kepalan tangan (*fist*) atau tekan **Simpan** di HP.
-- **Mobile Friendly:** Tombol mengambang (**Ambil Foto**, **Simpan**, **Ulang**), geser kepingan dengan sentuhan, area ambil dan snap yang lebih longgar, serta layar yang tetap menyala selama bermain.
+- **Mobile Friendly:** Tombol mengambang (**Ambil Foto**, **Simpan**, **Ulang**), geser kepingan dengan sentuhan, area ambil dan snap yang lebih longgar, galeri foto yang disembunyikan agar tidak menutupi puzzle, serta layar yang tetap menyala selama bermain.
 - **Photobooth Layouts:** Pilih strip foto sebelum mulai (2, 3, atau 4 foto) dan ukuran puzzle (3x3 atau 4x4).
 - **Aesthetic Filters:** Pilihan filter *Original*, *B&W*, *Vintage*, *Korean*, *Warm Glow*, dan *Cool Blue*.
 - **Scrapbook Editor:** Hias foto *strip*-mu di ruang edit virtual! Ganti warna bingkai, tulis keterangan, dan tempelkan stiker dengan *drag-and-drop* (mouse maupun sentuhan).
@@ -61,7 +61,7 @@ Disarankan memakai **Google Chrome**. Safari di iPhone belum diuji.
 5. Setelah *puzzle* tersusun, buat **kepalan tangan (fist)** dan tahan untuk menyimpan. Kalau puzzle belum selesai, kepalan tangan akan mengulang pengambilan foto.
 6. Ulangi sampai seluruh slot foto pada layout *photobooth* terpenuhi.
 7. Tunggu animasi *printing* selesai, lalu hias fotomu di ruang edit dengan stiker dan warna bingkai.
-8. Simpan hasilnya dengan tombol **Save** untuk mengunduh gambar.
+8. Simpan hasilnya dengan tombol **Save Photo** untuk mengunduh gambar.
 
 ### Di HP
 
@@ -69,9 +69,9 @@ Disarankan memakai **Google Chrome**. Safari di iPhone belum diuji.
 2. Pilih **Layout**, ukuran puzzle, dan **Filter**, lalu ketuk "START CREATING" dan izinkan akses kamera.
 3. Tunggu sampai status **"siap"**, lalu ketuk **Ambil Foto**. Kamu punya 5 detik untuk bergaya sebelum foto diambil di bingkai tengah layar.
 4. **Geser kepingan dengan jari** di layar untuk menyusun puzzle. Gestur cubit di depan kamera tetap bisa dipakai.
-5. Setelah puzzle tersusun, ketuk **Simpan**. Ketuk **Ulang** kalau ingin mengambil foto lagi.
+5. Setelah puzzle tersusun, ketuk **Simpan**. Ketuk **Ulang** kalau ingin mengambil foto lagi. Foto-foto sebelumnya disembunyikan agar tidak menutupi puzzle; ketuk penghitung foto di bagian atas layar (misalnya `1 / 3`) untuk melihatnya sebentar.
 6. Ulangi sampai strip foto penuh, lalu hias di ruang edit: seret stiker dengan jari dan buang ke ikon tempat sampah.
-7. Simpan hasil akhir dengan tombol **Save**.
+7. Simpan hasil akhir dengan tombol **Save Photo** atau ikon simpan di bar bawah.
 
 ---
 
