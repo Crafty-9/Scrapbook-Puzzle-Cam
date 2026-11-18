@@ -3,6 +3,11 @@ import {
   HandLandmarker,
 } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
 
+// [MOBILE] Deteksi perangkat sentuh/HP
+const IS_MOBILE =
+  /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ||
+  matchMedia("(pointer: coarse)").matches;
+
 const LM = {
   WRIST: 0,
   THUMB_TIP: 4,
@@ -19,9 +24,11 @@ const LM = {
 const PINCH_THRESHOLD = 0.055;
 const FRAME_PADDING = 28;
 const FREEZE_HOLD_MS = 250;
-const COUNTDOWN_SECONDS = 3;
+// [MOBILE] waktu lebih lama di HP agar sempat mundur dari layar setelah menekan tombol
+const COUNTDOWN_SECONDS = IS_MOBILE ? 5 : 3;
 const FIST_HOLD_FRAMES = 12;
-const SNAP_DISTANCE_RATIO = 0.45;
+// [MOBILE] area snap lebih longgar di HP
+const SNAP_DISTANCE_RATIO = IS_MOBILE ? 0.6 : 0.45;
 let GRID = 3;
 const LOAD_TIMEOUT_MS = 60000;
 
@@ -399,14 +406,14 @@ async function fallbackToCPU() {
   isFallbackActive = true;
   console.warn("[PuzzleCam] WebGL error detected. Falling back to CPU...");
   statusText.textContent = "WebGL error, switching to CPU...";
-  
+
   try {
     const oldLandmarker = handLandmarker;
     handLandmarker = null;
     if (oldLandmarker) {
       console.log("[PuzzleCam] Discarding broken WebGL landmarker instance without calling close() to prevent deadlocks.");
     }
-    
+
     const vision = visionInstance || await withTimeout(
       FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
@@ -414,7 +421,7 @@ async function fallbackToCPU() {
       LOAD_TIMEOUT_MS,
       "Timeout loading MediaPipe (WASM) runtime for CPU fallback."
     );
-    
+
     handLandmarker = await withTimeout(
       HandLandmarker.createFromOptions(vision, {
         baseOptions: {
@@ -448,8 +455,31 @@ function dist2D(a, b) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-function isPinching(landmarks) {
-  return dist2D(landmarks[LM.THUMB_TIP], landmarks[LM.INDEX_TIP]) < PINCH_THRESHOLD;
+// [MOBILE] Cubitan yang lebih stabil di HP:
+// jarak diukur dalam piksel, relatif terhadap ukuran telapak, dengan hysteresis
+// (mulai mencubit lebih ketat, melepas lebih longgar). Di desktop perilaku tidak berubah.
+const PINCH_ON_RATIO = 0.3;
+const PINCH_OFF_RATIO = 0.45;
+const pinchState = {};
+
+function isPinching(landmarks, key = "default") {
+  if (!IS_MOBILE) {
+    return dist2D(landmarks[LM.THUMB_TIP], landmarks[LM.INDEX_TIP]) < PINCH_THRESHOLD;
+  }
+  const palm =
+    Math.hypot(
+      (landmarks[LM.WRIST].x - landmarks[LM.MIDDLE_MCP].x) * canvas.width,
+      (landmarks[LM.WRIST].y - landmarks[LM.MIDDLE_MCP].y) * canvas.height
+    ) || 1;
+  const gap = Math.hypot(
+    (landmarks[LM.THUMB_TIP].x - landmarks[LM.INDEX_TIP].x) * canvas.width,
+    (landmarks[LM.THUMB_TIP].y - landmarks[LM.INDEX_TIP].y) * canvas.height
+  );
+  const ratio = gap / palm;
+  const was = pinchState[key] === true;
+  const now = was ? ratio < PINCH_OFF_RATIO : ratio < PINCH_ON_RATIO;
+  pinchState[key] = now;
+  return now;
 }
 
 function isFist(landmarks) {
@@ -768,7 +798,8 @@ function findNearestPiece(px, py) {
     const cx = piece.x + piece.w / 2;
     const cy = piece.y + piece.h / 2;
     const d = Math.hypot(px - cx, py - cy);
-    if (d < Math.max(piece.w, piece.h) * 0.75 && d < bestDist) {
+    // [MOBILE] area ambil lebih luas di HP
+    if (d < Math.max(piece.w, piece.h) * (IS_MOBILE ? 1.0 : 0.75) && d < bestDist) {
       best = piece;
       bestDist = d;
     }
@@ -810,11 +841,11 @@ function handleDragForHand(handLabel, pinching, indexPx) {
           GRID - 1,
           Math.max(0, Math.floor((cy - box.y) / puzzle.tileH))
         );
-        
+
         piece.x = box.x + dropCol * puzzle.tileW;
         piece.y = box.y + dropRow * puzzle.tileH;
         piece.placed = (dropCol === piece.col && dropRow === piece.row);
-        
+
         displaceCellOccupant(piece, dropRow, dropCol, box, puzzle.tileW, puzzle.tileH);
       }
       drag.activeHand = null;
@@ -837,7 +868,7 @@ function drawBoardAndPieces() {
   ctx.save();
   ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
   ctx.fillRect(box.x, box.y, box.width, box.height);
-  
+
   ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
   ctx.lineWidth = 1;
   ctx.setLineDash([5, 5]);
@@ -1154,7 +1185,8 @@ function processResults(result) {
     fistHoldCounter = 0;
     freezeGate.holding = false;
 
-    if (drag.activeHand && drag.piece) {
+    // [MOBILE] jangan lepas kepingan yang sedang digeser dengan jari/mouse
+    if (drag.activeHand && drag.activeHand !== "touch" && drag.piece) {
       handleDragForHand(drag.activeHand, false, { x: drag.piece.x, y: drag.piece.y });
     }
 
@@ -1221,7 +1253,7 @@ function processResults(result) {
         lastSeenFrame.at = performance.now();
       }
 
-      const bothPinching = isPinching(handA) && isPinching(handB);
+      const bothPinching = isPinching(handA, "A") && isPinching(handB, "B");
       if (bothPinching && frameBox.width > 40 && frameBox.height > 40) {
         if (!freezeGate.holding) {
           freezeGate.holding = true;
@@ -1260,16 +1292,17 @@ function processResults(result) {
   if (appState === "puzzle") {
     const labelsPresent = new Set();
     const handedness = result.handedness || [];
-    
+
     handsLandmarks.forEach((lm, i) => {
       const label = handedness[i] && handedness[i][0] ? handedness[i][0].categoryName : (i === 0 ? "Left" : "Right");
       labelsPresent.add(label);
-      const pinching = isPinching(lm);
+      const pinching = isPinching(lm, label);
       const indexPx = toPixel(mirrorLandmarkX(lm[LM.INDEX_TIP]));
-      handleDragForHand(label, pinching, indexPx);
+      handleDragForHand(label, pinching, smoothPoint(label, indexPx, pinching));
     });
 
-    if (drag.activeHand && !labelsPresent.has(drag.activeHand) && drag.piece) {
+    // [MOBILE] jangan lepas kepingan yang sedang digeser dengan jari/mouse
+    if (drag.activeHand && drag.activeHand !== "touch" && !labelsPresent.has(drag.activeHand) && drag.piece) {
       handleDragForHand(drag.activeHand, false, { x: drag.piece.x, y: drag.piece.y });
     }
 
@@ -1319,7 +1352,7 @@ function renderLoop() {
           }
         }
       }
-      
+
       // Always run game logic & rendering every frame using the latest landmarks
       // This prevents the canvas from flickering when the AI detection is throttled
       processResults({ landmarks: currentLandmarks, handedness: currentHandedness });
@@ -1374,6 +1407,7 @@ async function boot() {
     const progressOverlay = document.getElementById("progressOverlay");
     if (progressOverlay) progressOverlay.style.display = "flex";
     statusText.textContent = "siap";
+    setupMobileUI(); // [MOBILE]
 
     if (!loopRunning) {
       loopRunning = true;
@@ -1472,7 +1506,7 @@ document.getElementById('startBtn').addEventListener('click', () => {
 
 document.getElementById('tutorialGotItBtn').addEventListener('click', () => {
   document.getElementById('tutorialScreen').style.display = 'none';
-  
+
   if (window.navigateToScreen) {
     window.navigateToScreen('app');
   } else {
@@ -1770,3 +1804,175 @@ window.addEventListener('fullscreenchange', () => {
 });
 
 // Removed beforeunload listener to prevent refresh freezing.
+
+
+// ============================================================
+// [MOBILE] BLOK TAMBAHAN UNTUK KEMUDAHAN DI HP
+// ============================================================
+
+// iPhone: video harus inline dan muted agar play() tidak ditolak
+videoEl.setAttribute("playsinline", "");
+videoEl.muted = true;
+
+// Haluskan gerakan jari agar kepingan tidak bergetar
+const smoothState = {};
+function smoothPoint(key, p, active, alpha = 0.45) {
+  const s = smoothState[key];
+  if (!active || !s) {
+    smoothState[key] = { x: p.x, y: p.y };
+    return p;
+  }
+  s.x += (p.x - s.x) * alpha;
+  s.y += (p.y - s.y) * alpha;
+  return { x: s.x, y: s.y };
+}
+
+// Konversi koordinat layar <-> koordinat kanvas (cover / contain / fill)
+function getCanvasFit() {
+  const r = canvas.getBoundingClientRect();
+  const sx = r.width / canvas.width;
+  const sy = r.height / canvas.height;
+  const fit = getComputedStyle(canvas).objectFit;
+  if (fit !== "cover" && fit !== "contain") {
+    return { r, scaleX: sx, scaleY: sy, offX: 0, offY: 0 };
+  }
+  const scale = fit === "cover" ? Math.max(sx, sy) : Math.min(sx, sy);
+  return {
+    r,
+    scaleX: scale,
+    scaleY: scale,
+    offX: (r.width - canvas.width * scale) / 2,
+    offY: (r.height - canvas.height * scale) / 2,
+  };
+}
+
+function clientToCanvas(e) {
+  const f = getCanvasFit();
+  return {
+    x: (e.clientX - f.r.left - f.offX) / f.scaleX,
+    y: (e.clientY - f.r.top - f.offY) / f.scaleY,
+  };
+}
+
+// Bagian kanvas yang benar-benar terlihat di layar (koordinat kanvas)
+function getVisibleCanvasRect() {
+  const f = getCanvasFit();
+  const x0 = Math.max(0, -f.offX / f.scaleX);
+  const y0 = Math.max(0, -f.offY / f.scaleY);
+  const x1 = Math.min(canvas.width, (f.r.width - f.offX) / f.scaleX);
+  const y1 = Math.min(canvas.height, (f.r.height - f.offY) / f.scaleY);
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
+// Geser kepingan dengan jari (atau mouse). Memakai ulang handleDragForHand(),
+// jadi snap & tukar kepingan tetap sama seperti gestur tangan.
+function pointerInCanvas(e) {
+  const r = canvas.getBoundingClientRect();
+  return (
+    e.clientX >= r.left && e.clientX <= r.right &&
+    e.clientY >= r.top && e.clientY <= r.bottom
+  );
+}
+
+window.addEventListener("pointerdown", (e) => {
+  if (!e.isPrimary || appState !== "puzzle" || shatter.active) return;
+  if (e.target.closest?.("button, a, input, select, textarea")) return;
+  if (!pointerInCanvas(e)) return;
+  handleDragForHand("touch", true, clientToCanvas(e));
+});
+
+window.addEventListener("pointermove", (e) => {
+  if (!e.isPrimary || drag.activeHand !== "touch") return;
+  handleDragForHand("touch", true, clientToCanvas(e));
+});
+
+function endTouchDrag(e) {
+  if (!e.isPrimary || drag.activeHand !== "touch") return;
+  handleDragForHand("touch", false, clientToCanvas(e));
+}
+window.addEventListener("pointerup", endTouchDrag);
+window.addEventListener("pointercancel", endTouchDrag);
+
+// Ambil foto dengan tombol: bingkai tetap di tengah area yang terlihat
+function startTapCapture() {
+  if (appState !== "tracking" || isStripFull()) return;
+  const v = getVisibleCanvasRect();
+  const w = v.w * 0.8;
+  const h = Math.min(v.h * 0.8, (w * 4) / 3);
+  startCountdown({
+    x: v.x + (v.w - w) / 2,
+    y: v.y + (v.h - h) / 2,
+    width: w,
+    height: h,
+  });
+}
+
+// Layar tetap menyala selama bermain
+let wakeLock = null;
+async function keepScreenAwake() {
+  try {
+    if (!("wakeLock" in navigator) || wakeLock) return;
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", () => { wakeLock = null; });
+  } catch (_) {
+    /* tidak didukung atau ditolak: abaikan */
+  }
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && loopRunning) keepScreenAwake();
+});
+
+// Tombol mengambang (dibuat lewat JS, hanya di HP)
+const mobileBtns = {};
+
+function makeMobileBtn(label, position, onClick) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = label;
+  b.style.cssText =
+    "position:fixed;z-index:9000;display:none;padding:14px 26px;" +
+    "border-radius:9999px;border:2px dashed rgba(255,255,255,.55);" +
+    "background:#446279;color:#fff;font:700 16px 'Nunito Sans',sans-serif;" +
+    "box-shadow:0 6px 18px rgba(0,0,0,.35);touch-action:manipulation;" +
+    "bottom:calc(env(safe-area-inset-bottom,0px) + 24px);" +
+    position;
+  b.addEventListener("click", onClick);
+  document.body.appendChild(b);
+  return b;
+}
+
+function showBtn(b, on) {
+  b.style.display = on ? "block" : "none";
+}
+
+function updateMobileButtons() {
+  const ready = loopRunning && !!handLandmarker;
+  showBtn(mobileBtns.capture, ready && appState === "tracking" && !isStripFull());
+  showBtn(mobileBtns.save, ready && appState === "puzzle" && puzzle.solved);
+  showBtn(mobileBtns.redo, ready && appState === "puzzle");
+}
+
+// Dipanggil dari boot(). Aman dipanggil berulang.
+let mobileUIReady = false;
+function setupMobileUI() {
+  keepScreenAwake();
+  if (mobileUIReady) return;
+  mobileUIReady = true;
+
+  canvas.style.touchAction = "none"; // cegah layar ikut ter-scroll saat menggeser
+  document.documentElement.style.overscrollBehavior = "none"; // cegah pull-to-refresh
+  document.body.style.overscrollBehavior = "none";
+
+  if (!IS_MOBILE) return;
+
+  // Tampilkan seluruh frame kamera agar semua kepingan terjangkau jari.
+  // Kalau ingin layar penuh (tepi terpotong), ganti jadi "cover".
+  canvas.style.objectFit = "contain";
+
+  const center = "left:50%;transform:translateX(-50%);";
+  mobileBtns.capture = makeMobileBtn("Ambil Foto", center, startTapCapture);
+  mobileBtns.save = makeMobileBtn("Simpan", center, () => handleFistReset());
+  mobileBtns.redo = makeMobileBtn("Ulang", "left:16px;background:#7b5455;", () => resetPuzzleOnly());
+
+  setInterval(updateMobileButtons, 150);
+}
