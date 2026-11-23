@@ -1822,6 +1822,18 @@ window.addEventListener('fullscreenchange', () => {
   const style = document.createElement("style");
   style.id = "mobile-fixes";
   style.textContent = `
+    /* 0. css/styles.css: .animate-page memakai animation "forwards" yang meninggalkan
+          transform pada elemennya. Transform membuat anak ber-position:fixed (header,
+          bar bawah, tempat sampah) ikut ter-scroll bersama konten, bukan menempel di layar. */
+    .animate-page {
+      animation-fill-mode: none !important;
+    }
+    /* css/styles.css memberi #stage tinggi 100vh, lebih tinggi dari area terlihat
+       di browser HP (bar alamat). #app sudah 100dvh, jadi samakan. */
+    #stage {
+      height: 100dvh !important;
+    }
+
     /* 1. Pilihan filter: di layar sentuh efek :hover menempel setelah diketuk dan
           menimpa gaya "terpilih" (bg-surface-dim lebih spesifik dari bg-on-surface-variant),
           sehingga filter yang sudah terpilih tampak belum terpilih. */
