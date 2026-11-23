@@ -1817,6 +1817,54 @@ window.addEventListener('fullscreenchange', () => {
 // [MOBILE] BLOK TAMBAHAN UNTUK KEMUDAHAN DI HP
 // ============================================================
 
+// Perbaikan CSS untuk layar sentuh (disuntikkan lewat JS, index.html tidak perlu diubah)
+(function injectMobileStyles() {
+  const style = document.createElement("style");
+  style.id = "mobile-fixes";
+  style.textContent = `
+    /* 1. Pilihan filter: di layar sentuh efek :hover menempel setelah diketuk dan
+          menimpa gaya "terpilih" (bg-surface-dim lebih spesifik dari bg-on-surface-variant),
+          sehingga filter yang sudah terpilih tampak belum terpilih. */
+    .filter-btn.bg-on-surface-variant,
+    .filter-btn.bg-on-surface-variant:hover {
+      background-color: #504444 !important;
+      color: #ffffff !important;
+    }
+    .filter-btn, .grid-btn, .layout-btn, .sticker-btn, .border-btn {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    @media (hover: none) {
+      .filter-btn:hover { transform: none !important; }
+    }
+
+    @media (max-width: 767px) {
+      /* 2. Bar bawah di editor terlalu besar dan menutupi foto:
+            ubah menjadi tombol simpan bulat kecil di kiri bawah. */
+      #editPhotoScreen > nav {
+        width: 56px !important;
+        max-width: 56px !important;
+        height: 56px !important;
+        left: 16px !important;
+        right: auto !important;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        transform: none !important;
+        border-radius: 9999px !important;
+        border: 2px dashed rgba(255, 255, 255, 0.45) !important;
+        justify-content: center !important;
+      }
+      /* 3. Tempat sampah hanya muncul saat stiker sedang diseret. */
+      #trashBin:not(.opacity-100) {
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
 // iPhone: video harus inline dan muted agar play() tidak ditolak
 videoEl.setAttribute("playsinline", "");
 videoEl.muted = true;
