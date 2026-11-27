@@ -2,6 +2,16 @@
 
 Sebuah aplikasi bilik foto (*photobooth*) interaktif berbasis web yang bisa dikendalikan dengan gerakan tangan (*hand gestures*) maupun sentuhan layar. Pecahkan *sliding puzzle* untuk mendapatkan fotomu, lalu hias hasil jepretanmu dengan stiker bergaya *scrapbook* — semuanya langsung di *browser*, di komputer maupun di HP, tanpa perlu instalasi aplikasi tambahan!
 
+## COBA LANGSUNG
+
+Tidak perlu instalasi. Buka demo-nya langsung di browser, di komputer maupun di HP:
+
+**[https://crafty-9.github.io/Scrapbook-Puzzle-Cam/](https://crafty-9.github.io/Scrapbook-Puzzle-Cam/)**
+
+Izinkan akses kamera saat diminta, dan pastikan koneksi internet stabil karena model pelacak tangan perlu diunduh saat pertama kali dibuka.
+
+---
+
 ## FITUR UTAMA
 
 - **Hand-Gesture Capture:** Buat bingkai (*frame*) dengan kedua telunjukmu di depan kamera, lalu cubit (*pinch*) dengan kedua tangan untuk mengambil foto. Di HP, cukup tekan tombol **Ambil Foto**.
@@ -9,7 +19,7 @@ Sebuah aplikasi bilik foto (*photobooth*) interaktif berbasis web yang bisa dike
 - **Mobile Friendly:** Tombol mengambang (**Ambil Foto**, **Simpan**, **Ulang**), geser kepingan dengan sentuhan, area ambil dan snap yang lebih longgar, galeri foto yang disembunyikan agar tidak menutupi puzzle, serta layar yang tetap menyala selama bermain.
 - **Photobooth Layouts:** Pilih strip foto sebelum mulai (2, 3, atau 4 foto) dan ukuran puzzle (3x3 atau 4x4).
 - **Aesthetic Filters:** Pilihan filter *Original*, *B&W*, *Vintage*, *Korean*, *Warm Glow*, dan *Cool Blue*.
-- **Scrapbook Editor:** Hias foto *strip*-mu di ruang edit virtual! Ganti warna bingkai, tulis keterangan, dan tempelkan stiker dengan *drag-and-drop* (mouse maupun sentuhan).
+- **Scrapbook Editor:** Hias foto *strip*-mu di ruang edit virtual! Pilih warna bingkai (10 warna pastel) dan gaya bingkai (polkadot, gingham, garis, hati, bintang, bunga) lengkap dengan hiasan jahitan dan pita (warna pita menyesuaikan bingkai), tulis catatan (gaya teks saja, label, atau panel, dengan warna teks putih atau hitam yang menyesuaikan bingkai; catatan panjang otomatis turun ke baris berikutnya), tempelkan stiker dengan *drag-and-drop* (mouse maupun sentuhan), dan ubah warna tiap stiker lewat palet **Sticker Color** (ketuk stiker di foto untuk memilihnya, lalu pilih warna).
 - **Printing Animation:** Rasakan sensasi menunggu foto dicetak dengan animasi mesin cetak virtual sebelum masuk ke mode edit!
 
 ---
@@ -20,8 +30,8 @@ Aplikasi ini berjalan murni di *frontend* (browser). Karena alasan keamanan, bro
 
 ### 1. Klon Repositori Ini
 ```bash
-git clone https://github.com/Crafty-9/puzzle_cam-main
-cd puzzle_cam-main
+git clone https://github.com/Crafty-9/Scrapbook-Puzzle-Cam
+cd Scrapbook-Puzzle-Cam
 ```
 
 ### 2. Jalankan Local Server
@@ -41,7 +51,7 @@ http://localhost:8000
 
 ## CARA MENJALANKAN DI HP
 
-Kamera di HP hanya bisa dipakai lewat **HTTPS**, jadi alamat lokal biasa seperti `http://192.168.x.x:8000` **tidak akan bekerja**. Pilih salah satu cara berikut:
+Kamera di HP hanya bisa dipakai lewat **HTTPS**, jadi alamat lokal biasa seperti `http://192.168.x.x:8000` **tidak akan bekerja**. Cara tercepat adalah membuka [demo langsung](https://crafty-9.github.io/Scrapbook-Puzzle-Cam/) dari HP, karena sudah memakai HTTPS. Kalau ingin menjalankan sendiri, pilih salah satu cara berikut:
 
 - **Deploy ke hosting statis (paling mudah).** Unggah repositori ini ke **GitHub Pages**, **Netlify**, atau **Vercel**, lalu buka alamat HTTPS-nya dari HP. Untuk GitHub Pages: buka *Settings → Pages*, pilih branch `main`, lalu simpan.
 - **Uji dari komputer.** Pakai terowongan HTTPS seperti `ngrok` atau Cloudflare Tunnel yang mengarah ke server lokal, atau di Chrome desktop buka `chrome://inspect` dan aktifkan *port forwarding* agar `localhost` bisa dibuka dari HP lewat kabel USB.
@@ -51,6 +61,8 @@ Disarankan memakai **Google Chrome**. Safari di iPhone belum diuji.
 ---
 
 ## CARA BERMAIN
+
+> Setiap kali menekan **START CREATING**, popup singkat **Panduan Gestur Tangan** muncul sebelum kamera menyala. Panduan bermain lengkap untuk komputer dan HP ada di **Rules** atau ikon **?** di header layar pemilihan, serta ikon **?** di samping tombol fullscreen saat bermain.
 
 ### Di komputer (gestur tangan)
 

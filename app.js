@@ -167,7 +167,7 @@ function updateStripDownloadAvailability() {
   downloadStripBtn.disabled = galleryEntries.length === 0;
 }
 
-const STRIP_FILE_BORDER = 24;
+const STRIP_FILE_BORDER = 36; // sebelumnya 24: bingkai lebih tebal agar motif terlihat
 const STRIP_BOTTOM_PADDING = 120; // Extra padding for text
 const STRIP_FILE_GAP = 16;
 const STRIP_FILE_BG = "#ffffff";
@@ -1499,12 +1499,40 @@ layoutBtns.forEach(btn => {
   });
 });
 
-document.getElementById('startBtn').addEventListener('click', () => {
-  // Show tutorial modal instead of directly starting
-  document.getElementById('tutorialScreen').style.display = 'flex';
-});
+// ================= PANDUAN GESTUR TANGAN (popup saat START) =================
+// Popup ini selalu muncul sebelum kamera menyala dan hanya membahas gestur tangan.
+// Cara bermain lengkap (komputer & HP) ada di panduan "Rules" / ikon "?" (lihat openRules).
+function updateTutorialText() {
+  const root = document.getElementById('tutorialScreen');
+  if (!root) return;
 
-document.getElementById('tutorialGotItBtn').addEventListener('click', () => {
+  const texts = [
+    'Buat bingkai dengan kedua telunjuk, lalu cubit (Pinch) dengan kedua tangan dan tahan sebentar. Foto diambil setelah hitung mundur.',
+    'Cubit (Pinch) kepingan lalu geser tanganmu untuk memindahkannya ke posisi yang benar. Lepas cubitan untuk menaruhnya.',
+    'Kepalkan tangan (Fist) dan tahan sebentar untuk menyimpan hasil karyamu ke galeri.',
+  ];
+
+  root.querySelectorAll('.gap-6 > div').forEach((row, i) => {
+    const p = row.querySelector('p');
+    if (p && texts[i]) p.textContent = texts[i];
+  });
+
+  // Di HP gestur bersifat opsional: arahkan ke panduan bermain
+  if (IS_MOBILE && !document.getElementById('tutorialMobileNote')) {
+    const stepsBox = root.querySelector('.gap-6');
+    if (stepsBox) {
+      const note = document.createElement('p');
+      note.id = 'tutorialMobileNote';
+      note.style.cssText =
+        "margin-top:20px;font:600 12px 'Nunito Sans',sans-serif;color:#504444;opacity:.85;";
+      note.textContent =
+        'Di HP, gestur ini opsional. Kamu juga bisa memakai tombol dan sentuhan layar. Ketuk ikon ? untuk panduan bermain.';
+      stepsBox.insertAdjacentElement('afterend', note);
+    }
+  }
+}
+
+function startCameraFlow() {
   document.getElementById('tutorialScreen').style.display = 'none';
 
   if (window.navigateToScreen) {
@@ -1516,7 +1544,236 @@ document.getElementById('tutorialGotItBtn').addEventListener('click', () => {
 
   appState = 'tracking';
   boot();
+}
+
+// ---- Popup gestur selalu tampil saat START; Rules / ikon "?" membuka panduan bermain lengkap ----
+let tutorialMode = 'start'; // 'start' = lanjut menyalakan kamera, 'info' = hanya membaca
+const tutorialGotItBtn = document.getElementById('tutorialGotItBtn');
+const tutorialScreenEl = document.getElementById('tutorialScreen');
+const tutorialStartLabel = tutorialGotItBtn
+  ? tutorialGotItBtn.textContent.trim()
+  : 'Got it, Start Camera!';
+let rulesScreenEl = null;
+
+function isTutorialOpen() {
+  const isOpen = (el) => !!el && el.style.display === 'flex';
+  return isOpen(tutorialScreenEl) || isOpen(rulesScreenEl);
+}
+
+function openTutorial(mode) {
+  tutorialMode = mode;
+  updateTutorialText();
+  if (tutorialGotItBtn) {
+    tutorialGotItBtn.textContent = mode === 'start' ? tutorialStartLabel : 'Mengerti';
+  }
+  tutorialScreenEl.style.display = 'flex';
+}
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  openTutorial('start'); // selalu tampil sebelum kamera menyala
 });
+
+if (tutorialGotItBtn) {
+  tutorialGotItBtn.addEventListener('click', () => {
+    if (tutorialMode === 'start') {
+      startCameraFlow();
+    } else {
+      tutorialScreenEl.style.display = 'none';
+    }
+  });
+}
+
+// Mode baca saja: mengetuk latar gelap juga menutup popup gestur
+if (tutorialScreenEl) {
+  tutorialScreenEl.addEventListener('click', (e) => {
+    if (e.target === tutorialScreenEl && tutorialMode === 'info') {
+      tutorialScreenEl.style.display = 'none';
+    }
+  });
+}
+
+// ---- Panduan Bermain (Rules): cara bermain lengkap untuk komputer dan HP ----
+function closeRules() {
+  if (rulesScreenEl) rulesScreenEl.style.display = 'none';
+}
+
+function buildRulesScreen() {
+  if (rulesScreenEl) return rulesScreenEl;
+
+  const el = document.createElement('div');
+  el.id = 'rulesScreen';
+  el.style.cssText =
+    'position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;' +
+    'background:rgba(0,0,0,.8);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:16px;';
+  el.innerHTML = `
+    <div id="rulesCard" style="position:relative;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;
+      background:rgba(251,249,245,.97);border:1px solid rgba(130,116,115,.25);border-radius:24px;
+      padding:28px 24px 22px;box-shadow:0 20px 50px rgba(0,0,0,.35);">
+      <button id="rulesCloseX" type="button" title="Tutup"
+        style="position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:9999px;border:none;
+        background:#efeeea;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#504444;">close</span>
+      </button>
+      <h2 style="margin:0 0 4px;font:700 24px 'Courier Prime',monospace;color:#7b5455;text-align:center;">Panduan Bermain</h2>
+      <p style="margin:0 0 22px;font:400 13px 'Nunito Sans',sans-serif;color:#504444;text-align:center;">Dari memotret sampai menyimpan hasilnya.</p>
+      <div id="rulesBody"></div>
+      <button id="rulesOkBtn" type="button"
+        style="width:100%;padding:12px 0;border:none;border-radius:9999px;background:#446279;color:#fff;
+        font:700 15px 'Courier Prime',monospace;cursor:pointer;touch-action:manipulation;">Mengerti</button>
+      <button id="rulesGestureBtn" type="button"
+        style="display:block;margin:12px auto 0;padding:6px 10px;border:none;background:none;color:#7b5455;
+        font:600 12px 'Nunito Sans',sans-serif;text-decoration:underline;cursor:pointer;">Lihat panduan gestur tangan</button>
+    </div>`;
+  document.body.appendChild(el);
+
+  el.addEventListener('click', (e) => {
+    if (e.target === el) closeRules();
+  });
+  el.querySelector('#rulesCloseX').addEventListener('click', closeRules);
+  el.querySelector('#rulesOkBtn').addEventListener('click', closeRules);
+  el.querySelector('#rulesGestureBtn').addEventListener('click', () => {
+    closeRules();
+    openTutorial('info');
+  });
+
+  rulesScreenEl = el;
+  return el;
+}
+
+function openRules() {
+  const el = buildRulesScreen();
+  const n = STRIP_MAX_PHOTOS;
+
+  const lbl = (t) => `<b style="color:#446279;">${t}</b>`;
+  // Urutan menyesuaikan perangkat yang sedang dipakai
+  const pair = (komputer, hp) =>
+    IS_MOBILE
+      ? `${lbl('HP:')} ${hp}<br>${lbl('Komputer:')} ${komputer}`
+      : `${lbl('Komputer:')} ${komputer}<br>${lbl('HP:')} ${hp}`;
+  const step = (num, title, body) => `
+    <div style="display:flex;gap:14px;margin-bottom:18px;">
+      <div style="flex:0 0 28px;height:28px;border-radius:9999px;background:#7b5455;color:#fff;
+        font:700 14px 'Courier Prime',monospace;display:flex;align-items:center;justify-content:center;">${num}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font:700 15px 'Nunito Sans',sans-serif;color:#1b1c1a;margin-bottom:4px;">${title}</div>
+        <div style="font:400 13px/1.6 'Nunito Sans',sans-serif;color:#504444;">${body}</div>
+      </div>
+    </div>`;
+
+  const tips =
+    `<div style="margin:4px 0 20px;padding:12px 14px;border-radius:12px;background:#efeeea;
+      font:400 12px/1.5 'Nunito Sans',sans-serif;color:#504444;">
+      <b>Tips:</b> pastikan cahaya cukup. Di komputer, pastikan seluruh tangan terlihat oleh kamera.
+      Di HP, sandarkan perangkat agar kedua tangan bebas.</div>`;
+
+  el.querySelector('#rulesBody').innerHTML =
+    [
+      step(1, 'Atur sesi',
+        'Pilih layout (2, 3, atau 4 foto), ukuran puzzle (3 x 3 atau 4 x 4), dan filter, lalu tekan START CREATING.'),
+      step(2, 'Ambil foto',
+        pair('buat bingkai dengan kedua telunjuk, lalu cubit dengan kedua tangan dan tahan sebentar.',
+          'ketuk tombol Ambil Foto, lalu bergaya selama hitung mundur 5 detik.')),
+      step(3, 'Susun puzzle',
+        'Foto dipecah dan diacak. Kepingan yang tepat akan terkunci dengan bingkai hijau.<br>' +
+        pair('cubit lalu geser kepingan, atau seret dengan mouse.', 'geser kepingan dengan jari.')),
+      step(4, 'Simpan atau ulang',
+        'Setelah puzzle selesai:<br>' +
+        pair('kepalkan tangan dan tahan untuk menyimpan.', 'ketuk Simpan.') +
+        '<br>Ingin mengambil ulang foto?<br>' +
+        pair('kepalkan tangan sebelum puzzle selesai.', 'ketuk Ulang.')),
+      step(5, 'Ulangi sampai penuh',
+        `Ulangi langkah 2 sampai 4 sampai ${n} foto terkumpul. Di HP, ketuk penghitung foto di atas layar untuk melihat foto sebelumnya.`),
+      step(6, 'Hias dan simpan',
+        'Di editor: pilih warna dan gaya bingkai (polkadot, gingham, hati, dan lainnya), tempel stiker (ketuk stiker di foto lalu pilih warnanya), tulis memory log, ' +
+        'dan seret stiker ke tempat sampah untuk menghapusnya. Tekan Save Photo untuk mengunduh.'),
+    ].join('') + tips;
+
+  el.style.display = 'flex';
+  const card = el.querySelector('#rulesCard');
+  if (card) card.scrollTop = 0;
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  closeRules();
+  if (tutorialMode === 'info' && tutorialScreenEl) tutorialScreenEl.style.display = 'none';
+});
+
+// Tombol untuk membuka panduan bermain kapan saja
+function setupHelpButtons() {
+  // 1. Tombol "Rules" di header layar pemilihan (sebelumnya belum berfungsi)
+  const rulesBtn = document.querySelector('#welcomeScreen nav button');
+  if (rulesBtn) rulesBtn.addEventListener('click', openRules);
+
+  // 2. Ikon "?" di header layar pemilihan, khusus HP (menu "Rules" disembunyikan di layar kecil)
+  const headerRow = document.querySelector('#welcomeScreen header > div');
+  if (headerRow) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.title = 'Panduan bermain';
+    b.className =
+      'md:hidden flex items-center justify-center w-10 h-10 rounded-full bg-surface-container-highest text-on-surface-variant';
+    b.innerHTML = '<span class="material-symbols-outlined">help_outline</span>';
+    b.addEventListener('click', openRules);
+    headerRow.appendChild(b);
+  }
+
+  // 3. Ikon "?" di layar permainan, di samping tombol fullscreen
+  const fsBtn = document.getElementById('fullscreenBtn');
+  if (fsBtn) {
+    const h = document.createElement('button');
+    h.type = 'button';
+    h.title = 'Panduan bermain';
+    h.className =
+      'pointer-events-auto bg-white/90 h-7 w-7 rounded-full shadow-sm flex items-center justify-center text-primary hover:bg-white transition-transform hover:scale-105 active:scale-95';
+    h.innerHTML = '<span class="material-symbols-outlined text-[14px]">help_outline</span>';
+    h.addEventListener('click', openRules);
+    fsBtn.insertAdjacentElement('afterend', h);
+  }
+}
+setupHelpButtons();
+
+// ---- Landing page: "How it Works" disesuaikan dengan cara kerja aplikasi yang sebenarnya ----
+// (teks bawaan di index.html membahas unggah foto dan ekspor PDF, yang tidak ada di aplikasi ini)
+function updateHowItWorks() {
+  const sec = document.getElementById('how-it-works');
+  if (!sec) return;
+
+  const title = sec.querySelector('h2');
+  if (title && title.nextElementSibling) {
+    title.nextElementSibling.textContent = 'Three simple steps from camera to keepsake.';
+  }
+
+  const steps = [
+    {
+      icon: 'photo_camera',
+      title: 'Capture the Moment',
+      text: 'Frame your shot with both hands in front of the camera and pinch to snap, or just tap the capture button on your phone. Hold still for the countdown.',
+    },
+    {
+      icon: 'extension',
+      title: 'Solve the Puzzle',
+      text: 'Your photo breaks into shuffled pieces. Drag them back into place with a hand pinch, or simply slide them with your finger.',
+    },
+    {
+      icon: 'auto_fix_high',
+      title: 'Decorate & Save',
+      text: 'Pick a frame color and style, add stickers in any color, write a little memory log, then download your finished photo strip.',
+    },
+  ];
+
+  sec.querySelectorAll('.space-y-24 > div').forEach((row, i) => {
+    const step = steps[i];
+    if (!step) return;
+    const h3 = row.querySelector('h3');
+    const p = row.querySelector('p');
+    const icon = row.querySelector('.material-symbols-outlined');
+    if (h3) h3.textContent = step.title;
+    if (p) p.textContent = step.text;
+    if (icon) icon.textContent = step.icon;
+  });
+}
+updateHowItWorks();
 
 function getFilterString() {
   if (selectedFilter === 'bw') {
@@ -1539,6 +1796,28 @@ let currentEditCanvas = null;
 let currentBorderColor = '#ffffff';
 let placedStickers = [];
 
+// Tambahan warna bingkai pastel (HTML hanya punya 5 warna); ditambahkan sebelum tombol dikumpulkan
+(function addExtraBorderColors() {
+  const container = document.getElementById('borderOptions');
+  if (!container) return;
+  [
+    ['#cfe8d5', 'Mint'],
+    ['#d9ccf0', 'Lavender'],
+    ['#fbe9a6', 'Butter'],
+    ['#ffd2b8', 'Peach'],
+    ['#e8a6c4', 'Bubblegum'],
+  ].forEach(([color, name]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className =
+      'border-btn w-10 h-10 rounded-full border-2 border-transparent shadow-sm hover:scale-110 transition-transform active:scale-95';
+    b.style.backgroundColor = color;
+    b.setAttribute('data-border', color);
+    b.title = name;
+    container.appendChild(b);
+  });
+})();
+
 const borderBtns = document.querySelectorAll('.border-btn');
 borderBtns.forEach(btn => {
   btn.addEventListener('click', () => {
@@ -1554,6 +1833,7 @@ borderBtns.forEach(btn => {
     }
 
     currentBorderColor = btn.getAttribute('data-border');
+    renderFrameStylePreviews();
     redrawEditCanvas();
   });
 });
@@ -1566,15 +1846,644 @@ stickerBtns.forEach(btn => {
     const x = currentEditCanvas.width / 2 + (Math.random() - 0.5) * 200;
     const y = currentEditCanvas.height / 2 + (Math.random() - 0.5) * 200;
 
-    placedStickers.push({ emoji, x, y, size: 80 });
-    redrawEditCanvas();
+    // Tiap stiker punya warna sendiri: warna pilihan di palet, atau warna asli tombolnya
+    const iconEl = btn.querySelector('.material-symbols-outlined');
+    const baseColor = iconEl ? getComputedStyle(iconEl).color : '#7b5455';
+    placedStickers.push({ emoji, x, y, size: 80, baseColor, color: currentStickerColor || baseColor });
+    setSelectedSticker(placedStickers.length - 1);
   });
 });
+
+// ================= WARNA STIKER =================
+// Warna stiker tidak lagi mengikuti warna bingkai. Setiap stiker punya warna sendiri,
+// bisa diganti lewat palet: ketuk stiker di foto untuk memilihnya, lalu pilih warna.
+let selectedStickerIndex = -1;
+let currentStickerColor = null; // null = pakai warna asli tombol stiker ("Auto")
+const STICKER_COLORS = [
+  '#7b5455', '#446279', '#5e604d', '#ff9800', '#e0533d',
+  '#5fae6e', '#f4c2c2', '#f5c518', '#ffffff', '#1b1c1a',
+];
+
+function syncStickerColorUI() {
+  const bar = document.getElementById('stickerColorBar');
+  if (!bar) return;
+  const s = placedStickers[selectedStickerIndex];
+  let active;
+  if (s) {
+    active = s.color === s.baseColor ? 'auto' : String(s.color).toLowerCase();
+  } else {
+    active = currentStickerColor ? currentStickerColor.toLowerCase() : 'auto';
+  }
+  bar.querySelectorAll('[data-color]').forEach((el) => {
+    el.style.boxShadow = el.dataset.color === active
+      ? '0 0 0 2px #fbf9f5, 0 0 0 4px #446279'
+      : 'none';
+  });
+  const hint = document.getElementById('stickerColorHint');
+  if (hint) hint.textContent = s ? '(stiker terpilih)' : '(untuk stiker berikutnya)';
+}
+
+function setSelectedSticker(i) {
+  selectedStickerIndex = i;
+  syncStickerColorUI();
+  redrawEditCanvas();
+}
+
+// color = string warna, atau null untuk kembali ke warna asli stiker
+function applyStickerColor(color) {
+  currentStickerColor = color;
+  const s = placedStickers[selectedStickerIndex];
+  if (s) s.color = color || s.baseColor;
+  syncStickerColorUI();
+  redrawEditCanvas();
+}
+
+function setupStickerColorPicker() {
+  const firstBtn = document.querySelector('.sticker-btn');
+  const grid = firstBtn && firstBtn.parentElement;
+  if (!grid || document.getElementById('stickerColorBar')) return;
+
+  const bar = document.createElement('div');
+  bar.id = 'stickerColorBar';
+  bar.style.cssText = 'margin-top:16px;padding-top:14px;border-top:1px dashed #d4c2c2;';
+
+  const title = document.createElement('div');
+  title.style.cssText = "font:700 13px 'Nunito Sans',sans-serif;color:#7b5455;margin-bottom:10px;";
+  title.innerHTML =
+    'Sticker Color <span id="stickerColorHint" style="font-weight:400;font-size:11px;opacity:.65;"></span>';
+  bar.appendChild(title);
+
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;align-items:center;';
+  bar.appendChild(row);
+
+  const autoBtn = document.createElement('button');
+  autoBtn.type = 'button';
+  autoBtn.dataset.color = 'auto';
+  autoBtn.title = 'Warna asli stiker';
+  autoBtn.textContent = 'Auto';
+  autoBtn.style.cssText =
+    "height:30px;padding:0 12px;border-radius:9999px;border:1px solid rgba(0,0,0,.25);" +
+    "background:#fff;color:#504444;font:700 12px 'Nunito Sans',sans-serif;cursor:pointer;touch-action:manipulation;";
+  autoBtn.addEventListener('click', () => applyStickerColor(null));
+  row.appendChild(autoBtn);
+
+  STICKER_COLORS.forEach((color) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.color = color;
+    b.title = color;
+    b.style.cssText =
+      `width:30px;height:30px;border-radius:9999px;background:${color};` +
+      'border:1px solid rgba(0,0,0,.25);cursor:pointer;touch-action:manipulation;';
+    b.addEventListener('click', () => applyStickerColor(color));
+    row.appendChild(b);
+  });
+
+  // Pemilih warna bebas
+  const custom = document.createElement('input');
+  custom.type = 'color';
+  custom.value = '#7b5455';
+  custom.title = 'Warna lain';
+  custom.style.cssText =
+    'width:34px;height:30px;padding:0;border:1px solid rgba(0,0,0,.25);border-radius:6px;background:none;cursor:pointer;';
+  custom.addEventListener('input', () => applyStickerColor(custom.value));
+  row.appendChild(custom);
+
+  grid.insertAdjacentElement('afterend', bar);
+  syncStickerColorUI();
+}
+setupStickerColorPicker();
+
+// ================= BINGKAI (FRAME) AESTHETIC =================
+// Selain warna, bingkai punya gaya (polkadot, gingham, hati, bintang, bunga, ...) dan hiasan
+// (jahitan, pita). Semuanya digambar dengan path kanvas, tanpa gambar eksternal.
+let currentFrameStyle = 'solid';
+let frameStitch = false;
+let frameTape = false;
+
+function hexToRgb(hex) {
+  let h = String(hex).replace('#', '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  const n = parseInt(h, 16);
+  if (Number.isNaN(n)) return { r: 255, g: 255, b: 255 };
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+// t = 0 -> warna asli, t = 1 -> warna "other"
+function mixHex(hex, other, t) {
+  const a = hexToRgb(hex);
+  const b = hexToRgb(other);
+  const m = (x, y) => Math.round(x + (y - x) * t);
+  return `rgb(${m(a.r, b.r)},${m(a.g, b.g)},${m(a.b, b.b)})`;
+}
+
+function colorLuminance(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+// Warna motif: lebih gelap di bingkai terang, lebih terang di bingkai gelap
+function frameAccent(base) {
+  return colorLuminance(base) > 0.75 ? mixHex(base, '#7b5455', 0.4) : mixHex(base, '#ffffff', 0.55);
+}
+
+function pathHeart(ctx, cx, cy, size) {
+  const s = size / 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + s * 0.9);
+  ctx.bezierCurveTo(cx - s * 1.4, cy + s * 0.1, cx - s * 1.0, cy - s * 1.0, cx, cy - s * 0.35);
+  ctx.bezierCurveTo(cx + s * 1.0, cy - s * 1.0, cx + s * 1.4, cy + s * 0.1, cx, cy + s * 0.9);
+  ctx.closePath();
+}
+
+function pathStar(ctx, cx, cy, r, points = 5, inner = 0.45) {
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const rad = i % 2 === 0 ? r : r * inner;
+    const ang = -Math.PI / 2 + (i * Math.PI) / points;
+    const x = cx + Math.cos(ang) * rad;
+    const y = cy + Math.sin(ang) * rad;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+function drawDaisy(ctx, cx, cy, r, petalColor, centerColor) {
+  ctx.fillStyle = petalColor;
+  for (let i = 0; i < 5; i++) {
+    const ang = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+    ctx.beginPath();
+    ctx.arc(cx + Math.cos(ang) * r * 0.6, cy + Math.sin(ang) * r * 0.6, r * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = centerColor;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function pathRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// Menjalankan fn(x, y) di titik-titik berselang-seling (susunan batu bata) yang menutupi kanvas
+function eachStaggered(w, h, step, fn) {
+  for (let row = 0, y = step / 2; y < h + step; row++, y += step) {
+    const off = row % 2 ? step / 2 : 0;
+    for (let x = off + step / 2; x < w + step; x += step) fn(x, y);
+  }
+}
+
+// Menggambar motif bingkai di seluruh kanvas (foto digambar di atasnya, jadi motif tampak di tepi)
+function drawFramePattern(ctx, w, h, base, style, scale = 1) {
+  if (!style || style === 'solid') return;
+  const s = scale;
+  const accent = frameAccent(base);
+  ctx.save();
+  switch (style) {
+    case 'dots': {
+      ctx.fillStyle = accent;
+      eachStaggered(w, h, 34 * s, (x, y) => {
+        ctx.beginPath();
+        ctx.arc(x, y, 7 * s, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      break;
+    }
+    case 'gingham': {
+      const cell = 26 * s;
+      ctx.fillStyle = accent;
+      ctx.globalAlpha = 0.35;
+      for (let y = 0, i = 0; y < h; y += cell, i++) {
+        if (i % 2 === 0) ctx.fillRect(0, y, w, cell);
+      }
+      for (let x = 0, i = 0; x < w; x += cell, i++) {
+        if (i % 2 === 0) ctx.fillRect(x, 0, cell, h);
+      }
+      break;
+    }
+    case 'stripes': {
+      const band = 20 * s;
+      ctx.fillStyle = accent;
+      ctx.globalAlpha = 0.45;
+      ctx.translate(w / 2, h / 2);
+      ctx.rotate(-Math.PI / 4);
+      const len = Math.hypot(w, h);
+      for (let x = -len; x < len; x += band * 2) ctx.fillRect(x, -len, band, len * 2);
+      break;
+    }
+    case 'hearts': {
+      ctx.fillStyle = accent;
+      eachStaggered(w, h, 46 * s, (x, y) => {
+        pathHeart(ctx, x, y, 18 * s);
+        ctx.fill();
+      });
+      break;
+    }
+    case 'stars': {
+      const step = 54 * s;
+      eachStaggered(w, h, step, (x, y) => {
+        ctx.fillStyle = accent;
+        pathStar(ctx, x, y, 12 * s);
+        ctx.fill();
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.arc(x + step / 2, y, 3 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      });
+      break;
+    }
+    case 'flowers': {
+      eachStaggered(w, h, 58 * s, (x, y) => {
+        drawDaisy(ctx, x, y, 14 * s, accent, '#f5c518');
+      });
+      break;
+    }
+    default:
+      break;
+  }
+  ctx.restore();
+}
+
+// Pita memilih warna yang kontras dengan bingkai agar selalu terlihat
+const TAPE_CANDIDATES = ['#f4a6b8', '#abcae5', '#f7d774', '#a8d8b9', '#c3b1e1', '#ffbf9b', '#7b5455', '#446279'];
+
+function colorDistance(h1, h2) {
+  const a = hexToRgb(h1);
+  const b = hexToRgb(h2);
+  return Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b);
+}
+
+function pickTapeColors(base) {
+  const MIN_DIST = 70;
+  const visible = TAPE_CANDIDATES.filter((c) => colorDistance(c, base) >= MIN_DIST);
+  // Jika tak ada yang cukup kontras, pakai yang paling berbeda
+  const pool = visible.length >= 2
+    ? visible
+    : [...TAPE_CANDIDATES].sort((a, b) => colorDistance(b, base) - colorDistance(a, base));
+  const first = pool[0];
+  const second = pool.find((c) => c !== first && colorDistance(c, first) >= 45) || pool[1] || first;
+  return [first, second];
+}
+
+// Hiasan di atas foto: garis jahitan di tepi dan potongan pita (washi tape) di sudut
+function drawFrameExtras(ctx, w, h, base, scale = 1, opts = {}) {
+  const s = scale;
+  if (opts.stitch) {
+    ctx.save();
+    ctx.setLineDash([10 * s, 7 * s]);
+    ctx.lineWidth = Math.max(1.5, 2.5 * s);
+    ctx.strokeStyle = colorLuminance(base) > 0.6 ? 'rgba(80,68,68,0.55)' : 'rgba(255,255,255,0.85)';
+    const m = 12 * s;
+    ctx.strokeRect(m, m, w - m * 2, h - m * 2);
+    ctx.restore();
+  }
+  if (opts.tape) {
+    const tw = 130 * s;
+    const th = 36 * s;
+    const piece = (cx, cy, ang, color) => {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(ang);
+      ctx.globalAlpha = 0.85;
+      // Bayangan tipis agar pita tetap terpisah dari bingkai
+      ctx.shadowColor = 'rgba(0,0,0,0.22)';
+      ctx.shadowBlur = 5 * s;
+      ctx.shadowOffsetY = 2 * s;
+      ctx.fillStyle = color;
+      ctx.fillRect(-tw / 2, -th / 2, tw, th);
+      ctx.shadowColor = 'transparent';
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = '#ffffff';
+      for (let x = -tw / 2 + 8 * s; x < tw / 2; x += 16 * s) ctx.fillRect(x, -th / 2, 6 * s, th);
+      ctx.restore();
+    };
+    const [tapeA, tapeB] = pickTapeColors(base);
+    piece(34 * s, 34 * s, -Math.PI / 4, tapeA);
+    piece(w - 34 * s, h - 34 * s, -Math.PI / 4, tapeB);
+  }
+}
+
+const FRAME_STYLES = [
+  { id: 'solid', label: 'Polos' },
+  { id: 'dots', label: 'Polkadot' },
+  { id: 'gingham', label: 'Gingham' },
+  { id: 'stripes', label: 'Garis' },
+  { id: 'hearts', label: 'Hati' },
+  { id: 'stars', label: 'Bintang' },
+  { id: 'flowers', label: 'Bunga' },
+];
+
+// Pratinjau kecil tiap gaya memakai warna bingkai yang sedang dipilih
+function renderFrameStylePreviews() {
+  const bar = document.getElementById('frameStyleBar');
+  if (!bar) return;
+  const base = currentBorderColor || '#ffffff';
+  bar.querySelectorAll('canvas[data-style]').forEach((c) => {
+    const pctx = c.getContext('2d');
+    pctx.clearRect(0, 0, c.width, c.height);
+    pctx.fillStyle = base;
+    pctx.fillRect(0, 0, c.width, c.height);
+    drawFramePattern(pctx, c.width, c.height, base, c.dataset.style, 0.6);
+    // kotak abu-abu di tengah mewakili foto
+    pctx.fillStyle = '#e4e2de';
+    pctx.fillRect(c.width * 0.28, c.height * 0.28, c.width * 0.44, c.height * 0.44);
+  });
+}
+
+function syncFrameStyleUI() {
+  const bar = document.getElementById('frameStyleBar');
+  if (!bar) return;
+  bar.querySelectorAll('button[data-style]').forEach((chip) => {
+    const cv = chip.querySelector('canvas');
+    if (cv) {
+      cv.style.boxShadow = chip.dataset.style === currentFrameStyle
+        ? '0 0 0 2px #fbf9f5, 0 0 0 4px #446279'
+        : 'none';
+    }
+  });
+  bar.querySelectorAll('button[data-toggle]').forEach((pill) => {
+    const on = pill.dataset.toggle === 'stitch' ? frameStitch : frameTape;
+    pill.style.background = on ? '#446279' : '#ffffff';
+    pill.style.color = on ? '#ffffff' : '#504444';
+  });
+}
+
+function setupFrameStylePicker() {
+  const colors = document.getElementById('borderOptions');
+  if (!colors || document.getElementById('frameStyleBar')) return;
+
+  const bar = document.createElement('div');
+  bar.id = 'frameStyleBar';
+  bar.style.cssText = 'margin-top:16px;padding-top:14px;border-top:1px dashed #d4c2c2;';
+
+  const title = document.createElement('div');
+  title.style.cssText = "font:700 13px 'Nunito Sans',sans-serif;color:#7b5455;margin-bottom:10px;";
+  title.textContent = 'Frame Style';
+  bar.appendChild(title);
+
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:10px;';
+  FRAME_STYLES.forEach((st) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.dataset.style = st.id;
+    chip.style.cssText = 'padding:0;border:none;background:none;cursor:pointer;text-align:center;touch-action:manipulation;';
+    chip.innerHTML =
+      `<canvas width="64" height="64" data-style="${st.id}" ` +
+      'style="width:100%;aspect-ratio:1/1;border-radius:10px;display:block;border:1px solid rgba(0,0,0,.15);"></canvas>' +
+      `<span style="display:block;margin-top:4px;font:600 10px 'Nunito Sans',sans-serif;color:#504444;">${st.label}</span>`;
+    chip.addEventListener('click', () => {
+      currentFrameStyle = st.id;
+      syncFrameStyleUI();
+      redrawEditCanvas();
+    });
+    grid.appendChild(chip);
+  });
+  bar.appendChild(grid);
+
+  const extras = document.createElement('div');
+  extras.style.cssText = 'margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;';
+  const extrasLabel = document.createElement('span');
+  extrasLabel.textContent = 'Hiasan';
+  extrasLabel.style.cssText = "font:600 11px 'Nunito Sans',sans-serif;color:#504444;margin-right:2px;";
+  extras.appendChild(extrasLabel);
+
+  [['stitch', 'Jahitan'], ['tape', 'Pita']].forEach(([key, label]) => {
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.dataset.toggle = key;
+    pill.textContent = label;
+    pill.style.cssText =
+      "height:30px;padding:0 14px;border-radius:9999px;border:1px solid rgba(0,0,0,.25);" +
+      "font:700 12px 'Nunito Sans',sans-serif;cursor:pointer;touch-action:manipulation;";
+    pill.addEventListener('click', () => {
+      if (key === 'stitch') frameStitch = !frameStitch;
+      else frameTape = !frameTape;
+      syncFrameStyleUI();
+      redrawEditCanvas();
+    });
+    extras.appendChild(pill);
+  });
+  bar.appendChild(extras);
+
+  colors.insertAdjacentElement('afterend', bar);
+  renderFrameStylePreviews();
+  syncFrameStyleUI();
+}
+setupFrameStylePicker();
+
+// ================= CATATAN (MEMORY LOG) =================
+// Gaya catatan: otomatis | teks saja | label | panel. Warna teks: otomatis | putih | hitam.
+// Teks saja memakai putih/hitam menyesuaikan bingkai; label dan panel memakai latar kebalikannya.
+// Catatan panjang otomatis dipecah menjadi beberapa baris (paragraf), maksimal 4 baris.
+let captionStyle = 'auto';
+let captionInk = 'auto';
+const CAPTION_MAX_LINES = 4;
+const CAPTION_BASE_PANEL_H = STRIP_BOTTOM_PADDING - STRIP_FILE_GAP - 20; // tinggi area catatan untuk 1 baris
+const CAPTION_PANEL_RADIUS = 0; // 0 = persegi panjang bersudut lurus; isi mis. 16 untuk sudut membulat
+
+// Memecah teks menjadi baris-baris yang tidak melebihi maxW (huruf dipatahkan jika satu kata terlalu panjang)
+function wrapCaption(ctx, text, maxW) {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
+
+  const breakLongWord = (word) => {
+    let chunk = '';
+    for (const ch of word) {
+      if (chunk && ctx.measureText(chunk + ch).width > maxW) {
+        lines.push(chunk);
+        chunk = ch;
+      } else {
+        chunk += ch;
+      }
+    }
+    return chunk;
+  };
+
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width <= maxW) {
+      line = test;
+      continue;
+    }
+    if (line) {
+      lines.push(line);
+      line = '';
+    }
+    line = ctx.measureText(word).width <= maxW ? word : breakLongWord(word);
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// Menghitung baris, ukuran huruf, dan tambahan tinggi kanvas yang dibutuhkan catatan
+function layoutCaption(ctx, w, text) {
+  const maxW = w - STRIP_FILE_BORDER * 2 - 48;
+  let size = 22;
+  let lines;
+  for (;;) {
+    ctx.font = `bold ${size}px 'Courier Prime', monospace`;
+    lines = wrapCaption(ctx, text, maxW);
+    if (lines.length <= CAPTION_MAX_LINES || size <= 14) break;
+    size -= 2;
+  }
+  if (lines.length > CAPTION_MAX_LINES) {
+    lines = lines.slice(0, CAPTION_MAX_LINES);
+    let last = lines[CAPTION_MAX_LINES - 1];
+    while (last.length > 1 && ctx.measureText(`${last}…`).width > maxW) last = last.slice(0, -1);
+    lines[CAPTION_MAX_LINES - 1] = `${last}…`;
+  }
+  const lineH = Math.round(size * 1.35);
+  const blockH = lines.length * lineH;
+  const panelH = Math.max(CAPTION_BASE_PANEL_H, blockH + 28);
+  return { lines, size, lineH, blockH, panelH, extra: panelH - CAPTION_BASE_PANEL_H };
+}
+
+function drawCaption(ctx, w, h, base, layout) {
+  let mode = captionStyle;
+  if (mode === 'auto') mode = currentFrameStyle === 'solid' ? 'text' : 'label';
+
+  const frameIsLight = colorLuminance(base) >= 0.55;
+  let ink;
+  if (captionInk === 'white') ink = '#ffffff';
+  else if (captionInk === 'black') ink = '#1b1c1a';
+  else ink = mode === 'text' && !frameIsLight ? '#ffffff' : '#1b1c1a';
+  const plate = ink === '#ffffff' ? '#1b1c1a' : '#ffffff';
+
+  const { lines, size, lineH, blockH, panelH, extra } = layout;
+  const py = h - STRIP_BOTTOM_PADDING - extra + STRIP_FILE_GAP; // tepi atas area catatan
+  const cy = py + panelH / 2;
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `bold ${size}px 'Courier Prime', monospace`;
+
+  if (mode === 'panel') {
+    // Persegi panjang selebar foto, di area bawah strip
+    const px = STRIP_FILE_BORDER;
+    const pw = w - STRIP_FILE_BORDER * 2;
+    if (CAPTION_PANEL_RADIUS > 0) {
+      pathRoundRect(ctx, px, py, pw, panelH, CAPTION_PANEL_RADIUS);
+    } else {
+      ctx.beginPath();
+      ctx.rect(px, py, pw, panelH);
+    }
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = plate;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  } else if (mode === 'label') {
+    // Label selebar teks
+    const textW = Math.max(...lines.map((l) => ctx.measureText(l).width));
+    const pw = Math.min(textW + 40, w - 24);
+    const ph = blockH + 20;
+    pathRoundRect(ctx, (w - pw) / 2, cy - ph / 2, pw, ph, Math.min(ph / 2, 22));
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = plate;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  } else {
+    // Teks saja: garis tepi tipis agar tetap terbaca di atas motif
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = ink === '#ffffff' ? 'rgba(0,0,0,0.28)' : 'rgba(255,255,255,0.5)';
+  }
+
+  const top = cy - blockH / 2;
+  ctx.fillStyle = ink;
+  lines.forEach((line, i) => {
+    const y = top + lineH * (i + 0.5);
+    if (mode === 'text') ctx.strokeText(line, w / 2, y);
+    ctx.fillText(line, w / 2, y);
+  });
+  ctx.restore();
+}
+
+function setPillActive(btn, on) {
+  btn.style.background = on ? '#446279' : '#ffffff';
+  btn.style.color = on ? '#ffffff' : '#504444';
+}
+
+function syncCaptionUI() {
+  const bar = document.getElementById('captionStyleBar');
+  if (!bar) return;
+  bar.querySelectorAll('button[data-cap-style]').forEach((b) => {
+    setPillActive(b, b.dataset.capStyle === captionStyle);
+  });
+  bar.querySelectorAll('button[data-cap-ink]').forEach((b) => {
+    setPillActive(b, b.dataset.capInk === captionInk);
+  });
+}
+
+function setupCaptionControls() {
+  const input = document.querySelector('.typewriter-input');
+  if (!input || document.getElementById('captionStyleBar')) return;
+  input.maxLength = 140; // catatan sangat panjang tidak muat di strip
+
+  const bar = document.createElement('div');
+  bar.id = 'captionStyleBar';
+  bar.style.cssText = 'margin-top:12px;display:flex;flex-direction:column;gap:10px;';
+
+  const makeRow = (labelText, items, dataAttr, onPick) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;';
+    const label = document.createElement('span');
+    label.textContent = labelText;
+    label.style.cssText = "flex:0 0 100%;font:600 11px 'Nunito Sans',sans-serif;color:#504444;";
+    row.appendChild(label);
+    items.forEach(([value, text]) => {
+      const pill = document.createElement('button');
+      pill.type = 'button';
+      pill.dataset[dataAttr] = value;
+      pill.textContent = text;
+      pill.style.cssText =
+        "height:28px;padding:0 12px;border-radius:9999px;border:1px solid rgba(0,0,0,.25);" +
+        "font:700 11px 'Nunito Sans',sans-serif;cursor:pointer;touch-action:manipulation;";
+      pill.addEventListener('click', () => {
+        onPick(value);
+        syncCaptionUI();
+        redrawEditCanvas();
+      });
+      row.appendChild(pill);
+    });
+    return row;
+  };
+
+  bar.appendChild(makeRow('Gaya catatan', [
+    ['auto', 'Otomatis'], ['text', 'Teks'], ['label', 'Label'], ['panel', 'Panel'],
+  ], 'capStyle', (v) => { captionStyle = v; }));
+  bar.appendChild(makeRow('Warna teks', [
+    ['auto', 'Auto'], ['white', 'Putih'], ['black', 'Hitam'],
+  ], 'capInk', (v) => { captionInk = v; }));
+
+  input.insertAdjacentElement('afterend', bar);
+  syncCaptionUI();
+}
+setupCaptionControls();
 
 function redrawEditCanvas() {
   if (!currentEditCanvas) return;
   const editCanvas = document.getElementById("editCanvas");
   const eCtx = editCanvas.getContext("2d");
+
+  // Catatan panjang ditulis ke bawah (beberapa baris): tambah tinggi kanvas bila perlu
+  const captionInput = document.querySelector('.typewriter-input');
+  const captionText = captionInput ? captionInput.value.trim() : '';
+  const captionLayout = captionText ? layoutCaption(eCtx, currentEditCanvas.width, captionText) : null;
+  const targetH = currentEditCanvas.height + (captionLayout ? captionLayout.extra : 0);
+  if (editCanvas.height !== targetH) editCanvas.height = targetH; // mengubah tinggi mengosongkan kanvas; digambar ulang di bawah
 
   eCtx.clearRect(0, 0, editCanvas.width, editCanvas.height);
 
@@ -1582,27 +2491,44 @@ function redrawEditCanvas() {
   eCtx.fillStyle = currentBorderColor || "#ffffff";
   eCtx.fillRect(0, 0, editCanvas.width, editCanvas.height);
 
+  // Motif bingkai (polkadot, gingham, hati, dst.) di balik foto
+  drawFramePattern(eCtx, editCanvas.width, editCanvas.height, currentBorderColor || "#ffffff", currentFrameStyle, 1);
+
   // Draw photos and stickers
   eCtx.drawImage(currentEditCanvas, 0, 0);
 
+  // Catatan (memory log) digambar lebih dulu agar pita tidak tertutup panel, dan stiker tetap di atasnya
+  if (captionLayout) {
+    drawCaption(eCtx, editCanvas.width, editCanvas.height, currentBorderColor || "#ffffff", captionLayout);
+  }
+
+  // Hiasan di atas foto dan catatan: jahitan dan pita
+  drawFrameExtras(eCtx, editCanvas.width, editCanvas.height, currentBorderColor || "#ffffff", 1, {
+    stitch: frameStitch,
+    tape: frameTape,
+  });
+
   eCtx.textAlign = "center";
   eCtx.textBaseline = "middle";
-  placedStickers.forEach(sticker => {
+  placedStickers.forEach((sticker, i) => {
     // If it's a material icon string (e.g. "star", "favorite"), use Material Symbols font.
     // If it's a native emoji, sans-serif is fine, but Material Symbols works well if we only use icons.
     eCtx.font = `${sticker.size}px "Material Symbols Outlined"`;
+    // Sebelumnya stiker memakai fillStyle terakhir (warna bingkai); sekarang warna sendiri
+    eCtx.fillStyle = sticker.color || sticker.baseColor || '#7b5455';
     eCtx.fillText(sticker.emoji, sticker.x, sticker.y);
-  });
 
-  // Render Memory Log Caption at the bottom of the photo strip
-  const memoryLogInput = document.querySelector('.typewriter-input');
-  if (memoryLogInput && memoryLogInput.value.trim()) {
-    eCtx.fillStyle = "#7b5455";
-    eCtx.font = "bold 22px 'Courier Prime', monospace";
-    eCtx.textAlign = "center";
-    eCtx.textBaseline = "middle";
-    eCtx.fillText(memoryLogInput.value.trim(), editCanvas.width / 2, editCanvas.height - (120 / 2));
-  }
+    // Garis putus-putus penanda stiker terpilih (disembunyikan saat menyimpan)
+    if (i === selectedStickerIndex) {
+      const half = sticker.size * 0.6;
+      eCtx.save();
+      eCtx.strokeStyle = '#446279';
+      eCtx.lineWidth = 3;
+      eCtx.setLineDash([10, 8]);
+      eCtx.strokeRect(sticker.x - half, sticker.y - half, half * 2, half * 2);
+      eCtx.restore();
+    }
+  });
 }
 
 // Live redraw on memory log typing
@@ -1678,6 +2604,7 @@ function handleDragStart(e) {
     const hitZone = s.size * 0.6;
     if (Math.abs(ptr.x - s.x) < hitZone && Math.abs(ptr.y - s.y) < hitZone) {
       draggingStickerIndex = i;
+      setSelectedSticker(i);
       dragOffsetX = s.x - ptr.x;
       dragOffsetY = s.y - ptr.y;
       trashBin.classList.remove('opacity-70');
@@ -1686,6 +2613,9 @@ function handleDragStart(e) {
       return;
     }
   }
+
+  // Mengetuk area kosong membatalkan pilihan stiker
+  if (selectedStickerIndex !== -1) setSelectedSticker(-1);
 }
 
 function handleDragMove(e) {
@@ -1726,6 +2656,8 @@ function handleDragEnd(e) {
   if (clientX >= trashRect.left && clientX <= trashRect.right &&
     clientY >= trashRect.top && clientY <= trashRect.bottom) {
     placedStickers.splice(draggingStickerIndex, 1);
+    selectedStickerIndex = -1;
+    syncStickerColorUI();
     redrawEditCanvas();
   }
 
@@ -1749,6 +2681,10 @@ window.onScreenChange = (screenId) => {
 };
 
 function finishEditAndReturn(save) {
+  // Sembunyikan garis seleksi stiker agar tidak ikut tersimpan di gambar
+  selectedStickerIndex = -1;
+  if (save && currentEditCanvas) redrawEditCanvas();
+
   if (save && currentEditCanvas) {
     const finalCanvas = document.createElement("canvas");
     finalCanvas.width = editCanvas.width;
@@ -1942,7 +2878,7 @@ function pointerInCanvas(e) {
 }
 
 window.addEventListener("pointerdown", (e) => {
-  if (!e.isPrimary || appState !== "puzzle" || shatter.active) return;
+  if (!e.isPrimary || appState !== "puzzle" || shatter.active || isTutorialOpen()) return;
   if (e.target.closest?.("button, a, input, select, textarea")) return;
   if (!pointerInCanvas(e)) return;
   handleDragForHand("touch", true, clientToCanvas(e));
@@ -2013,7 +2949,7 @@ function showBtn(b, on) {
 }
 
 function updateMobileButtons() {
-  const ready = loopRunning && !!handLandmarker;
+  const ready = loopRunning && !!handLandmarker && !isTutorialOpen();
   showBtn(mobileBtns.capture, ready && appState === "tracking" && !isStripFull());
   showBtn(mobileBtns.save, ready && appState === "puzzle" && puzzle.solved);
   showBtn(mobileBtns.redo, ready && appState === "puzzle");
